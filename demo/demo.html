@@ -1,0 +1,225 @@
+<html>
+<head>
+<title>Random Forest</title>
+<link type="text/css" href="./jqueryui/css/ui-lightness/jquery-ui-1.8.21.custom.css" rel="Stylesheet" />	
+<script type="text/javascript" src="./jqueryui/js/jquery-1.7.2.min.js"></script>
+<script type="text/javascript" src="./jqueryui/js/jquery-ui-1.8.21.custom.min.js"></script>
+<script src="./npg_include/npgmain.js"></script>
+<script src="../lib/randomforest.js"></script>
+<script type="text/javascript">
+
+
+var N= 10;
+var data = new Array(N);
+var labels= new Array(N);
+var tree= new forestjs.RandomForest();
+var dirty= true;
+var ss= 50.0;
+var density= 10;
+var avgerr= 0;
+var drawSoft = true;
+var options = {};
+options.type = 1;
+
+function myinit(){
+  
+  data[0]=[-0.4326  ,  1.1909 ];
+  data[1]= [1.5, 3.0];
+  data[2]=[0.1253 , -0.0376   ];
+  data[3]=[0.2877 ,   0.3273  ];
+  data[4]=[-1.1465 ,   0.1746 ];
+  data[5]=[1.8133 ,   2.1139  ];
+  data[6]=[2.7258 ,   3.0668  ];
+  data[7]=[1.4117 ,   2.0593  ];
+  data[8]=[4.1832 ,   1.9044  ];
+  data[9]=[1.8636 ,   1.1677  ];
+  
+  labels[0]= 1;
+  labels[1]= 1;
+  labels[2]= 1;
+  labels[3]= 1;
+  labels[4]= 1;
+  labels[5]= -1;
+  labels[6]= -1;
+  labels[7]= -1;
+  labels[8]= -1;
+  labels[9]= -1;
+  
+  data[10]=[-0.5 ,   -0.5  ];
+  labels[10]= -1;
+  data[11]=[1.0 ,   2.0 ];
+  labels[11]= 1;
+  data[12]=[1.0 ,   -1.0 ];
+  labels[12]= 1;
+  
+  N= data.length;
+  
+  retrain();
+}
+
+function retrain(){
+  tree.train(data, labels, options);
+  dirty= true;
+}
+  
+function update(){
+}
+
+function draw(){
+    if(!dirty) return;
+    
+    ctx.clearRect(0,0,WIDTH,HEIGHT);
+    
+    for(var x=0.0; x<=WIDTH; x+= density) {
+      for(var y=0.0; y<=HEIGHT; y+= density) {
+        
+        var dec= tree.predictOne([(x-WIDTH/2)/ss, (y-HEIGHT/2)/ss]);
+        
+        if(!drawSoft) {
+            if(dec > 0.5) ctx.fillStyle = 'rgb(150,250,150)';
+            else ctx.fillStyle = 'rgb(250,150,150)';
+        } else {
+            var ri= 250*(1-dec) + 150*dec;
+            var gi= 250*dec + 150*(1-dec);
+            ctx.fillStyle = 'rgb('+Math.floor(ri)+','+Math.floor(gi)+',150)';
+        }
+        
+        ctx.fillRect(x-density/2-1, y-density-1, density+2, density+2);
+      }
+    }
+    
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgb(50,50,50)';
+    ctx.lineWidth = 1;
+    ctx.moveTo(0, HEIGHT/2);
+    ctx.lineTo(WIDTH, HEIGHT/2);
+    ctx.moveTo(WIDTH/2, 0);
+    ctx.lineTo(WIDTH/2, HEIGHT);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgb(0,0,0)';
+    for(var i=0;i<N;i++) {
+      if(labels[i]==1) ctx.fillStyle = 'rgb(100,200,100)';
+      else ctx.fillStyle = 'rgb(200,100,100)';
+      drawCircle(data[i][0]*ss+WIDTH/2, data[i][1]*ss+HEIGHT/2, 5);
+    }
+    
+    ctx.fillStyle= 'rgb(0,0,0)';
+    ctx.fillText("Average error: " + avgerr.toPrecision(4), 10, HEIGHT-30); 
+    dirty= false;
+}
+
+function mouseClick(x, y, shiftPressed){
+  
+  data[N] = [(x-WIDTH/2)/ss, (y-HEIGHT/2)/ss];
+  labels[N] = shiftPressed ? 1 : -1;
+  N += 1;
+  
+  retrain();
+}
+
+function keyUp(key){
+  
+  if(key==82) { // 'r'
+    retrain();
+  }
+  
+}
+
+function keyDown(key){
+}
+
+function refreshTrees(event, ui) {
+  var numTrees = Math.floor(ui.value);
+  $("#treesreport").text("number of trees = " + numTrees);
+  options.numTrees= numTrees;
+  retrain();
+}
+
+function refreshDepth(event, ui) {
+  var maxDepth = Math.floor(ui.value);
+  $("#depthreport").text("max depth = " + maxDepth);
+  options.maxDepth = maxDepth;
+  retrain();
+}
+
+function refreshTries(event, ui) {
+  var tries = Math.floor(ui.value);
+  $("#triesreport").text("hypotheses / node = " + tries);
+  options.numTries = tries;
+  retrain();
+}
+
+$(function() {
+    
+    $("#slider1").slider({
+        orientation: "horizontal",
+        slide: refreshTrees,
+        max: 200,
+        min: 1,
+        step: 1,
+        value: 100
+    });
+
+    $("#slider2").slider({
+        orientation: "horizontal",
+        slide: refreshDepth,
+        max: 12,
+        min: 2,
+        step: 1,
+        value: 4
+    });
+    
+    $("#slider3").slider({
+        orientation: "horizontal",
+        slide: refreshTries,
+        max: 50,
+        min: 1,
+        step: 1,
+        value: 10
+    });
+    
+});
+</script>
+
+<style type="text/css">
+canvas { 
+    border: 1px solid #555;
+    margin-top: 10px;
+}
+body {
+    text-align: center;
+    font-family: Verdana, Helvetica, sans-serif;
+    font-size: 12px;
+    padding: 0;
+    margin: 0;
+}
+h1 {
+  font-size: 16px;
+}
+p {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+#dec {
+  width: 100%;
+  height: 100px;
+  background-color: #F5FAFF;
+  border-bottom: 1px solid #E5EAEF;
+  margin-bottom: 20px;
+}
+#optsdiv {
+  width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
+</head>
+
+<body onLoad="NPGinit(10);">
+
+<canvas id="NPGcanvas" width="500" height="500">Browser not supported for Canvas. Get a real browser.</canvas><br /><br />
+
+</body>
+</html>
